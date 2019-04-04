@@ -1,13 +1,14 @@
 # Initial Code By:
 # Georgi Marinov 10/27/2013
 #
-# Version 1.0.1
+# Version 2.0
 
 import sys
 import os
 import gc
 import string
 import pysam
+import argparse
 
 # FLAG field meaning
 # 0x0001 1 the read is paired in sequencing, no matter whether it is mapped in a pair
@@ -25,20 +26,35 @@ import pysam
 def hasFlag(flag, value):
     return flag & value == value
 
+
+def make_parser():
+    parser = argparse.ArgumentParser()
+    parser.add_argument("SAM", help="SAMfilename")
+    parser.add_argument("outputfilename", help="output file name")
+    parser.add_argument("--bam", help="input is indexed BAM file", action="store_true", dest="doBAM")
+    #TODO: posiitonal chrom sizes and samtools arguments following --BAM
+    parser.add_argument("--paired", action="store_true", help="reads are paired", dest="doPaired")
+    parser.add_argument("--mappedOnly", help="do not report mapping fraction", action="store_false", dest="reportFraction")
+    parser.add_argument("--verbose", help="verbose output", action="store_true")
+
+    return parser
+
 #TODO: add a count of the unaligned reads and calculate a % aligned value
-def main(argv):
-    if len(argv) < 2:
-        print 'usage: python %s SAMfilename outputfilename [-bam chrom.sizes samtools] [-paired] [-mappedOnly]' % argv[0]
-        print '       BAM file has to be indexed'
-        print '       Complexity will be calculated only for BAM files'
-        sys.exit(1)
+def main(cmdline=None):
+    parser = make_parser()
+    args = parser.parse_args(cmdline)
+    #if len(argv) < 2:
+    #    print 'usage: python %s SAMfilename outputfilename [-bam chrom.sizes samtools] [-paired] [-mappedOnly]' % argv[0]
+    #    print '       BAM file has to be indexed'
+    #    print '       Complexity will be calculated only for BAM files'
+    #    sys.exit(1)
 
-    SAM = argv[1]
-    outputfilename = argv[2]
+    SAM = args.SAM
 
-    doBAM = False
-    if '-bam' in argv:
-        doBAM = True
+    #doBAM = False
+    #if '-bam' in argv:
+    if args.doBAM:
+        #doBAM = True
         chrominfo = argv[argv.index('-bam') + 1]
         samtools = argv[argv.index('-bam') + 2]
         chromInfoList = []
@@ -75,20 +91,20 @@ def main(argv):
 
     SeenDict = {}
     SeenTwiceDict = {}
-    doPaired = False
-    if '-paired' in argv:
-        doPaired = True
-        print 'will treat reads as paired'
+    #doPaired = False
+    #if '-paired' in argv:
+    #    doPaired = True
+    #    print 'will treat reads as paired'
 
-    reportFraction = True
-    if '-mappedOnly' in argv:
-        reportFraction = False
+    #reportFraction = True
+    #if '-mappedOnly' in argv:
+    #    reportFraction = False
 
     print 'examining read multiplicty'
 
     ReadLengthDict = {}
 
-    if doBAM:
+    if args.doBAM:
         i = 0
         samfile = pysam.Samfile(SAM, "rb" )
         for (chr, start, end) in chromInfoList:
@@ -178,7 +194,7 @@ def main(argv):
                 continue
 
             ID = fields[0]
-            if doPaired and fields[9] != '0':
+            if args.doPaired and fields[9] != '0':
                 FLAGfield = int(fields[1])
                 if hasFlag(FLAGfield, 64):
                     ID = ID + '/1'
@@ -210,7 +226,7 @@ def main(argv):
     DistinctUniqueReads = 0
 
     Complexity='N\A'
-    if doBAM:
+    if args.doBAM:
         TotalUniqueReads = 0
         DistinctUniqueReads = 0
         i = 0
@@ -271,7 +287,7 @@ def main(argv):
     SeenDict = ''
     SeenTwiceDict = ''
 
-    outfile = open(outputfilename, 'w')
+    outfile = open(args.outputfilename, 'w')
 
     outline = 'Unique:\t%s' % Unique
     print outline
@@ -295,7 +311,7 @@ def main(argv):
     print outline
     outfile.write(outline +'\n')
 
-    if reportFraction:
+    if args.reportFraction:
         unmapped = 0.0
         #TODO: remove hard-coded Cufflinks output filename patterns
         unmappedfile = string.replace(SAM, "accepted_hits", "unmapped")
@@ -338,4 +354,4 @@ def main(argv):
 
 
 if __name__ == '__main__':
-    main(sys.argv)
+    main()
